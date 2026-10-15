@@ -795,6 +795,13 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
     .mdl-gh { display: flex; align-items: center; justify-content: space-between; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); padding: .6rem .75rem .2rem 2.5rem; }
     .mdl-gh button { text-transform: none; letter-spacing: 0; font-size: 12px; color: #a8c7fa; padding: .1rem .4rem; border-radius: 9999px; }
     .mdl-note { padding: .4rem .75rem .6rem 2.5rem; font-size: 12px; color: rgba(255,255,255,.55); }
+    /* location block sits between Activity and the user row; the ring is centred on both lines */
+    .sb-loc { margin: .25rem .5rem 0 .5rem; }
+    .sb-loc-dot { width: 1.875rem; align-self: stretch; }
+    .sb-loc-dot::before { left: .875rem; top: 50%; transform: translateY(-50%); }
+    .sb-loc-refresh { align-self: center; margin-top: 0; }
+    #sidebar:not(.is-collapsed) #nav-settings-btn { top: 5.125rem; }
+    #sidebar.is-collapsed .sb-loc { display: none; }
     /* ---- attachment (+) menu ---- */
     #attach-btn svg.t-plus-ico { width: 1.1rem; height: 1.1rem; transition: transform .2s cubic-bezier(.2,0,0,1); }
     #attach-btn.is-open svg.t-plus-ico { transform: rotate(45deg); }
@@ -1101,10 +1108,6 @@ html[data-theme="light"] #attach-sheet .at-grab{background:#747775}
         <button onclick="app.showToast('Activity history is stored locally in your browser.', 'info')" class="sb-row" aria-label="Activity" title="Activity">
           <span class="sb-ico"><svg fill="currentColor"><use href="#nav-activity"></use></svg></span><span class="sb-label">Activity</span>
         </button>
-        <div class="sb-row sb-user">
-          <span class="sb-ico"><span class="sb-avatar sparkle-bg"><span id="user-avatar-initial">U</span></span></span>
-          <span class="sb-label"><span id="user-display-name">user</span></span>
-        </div>
         <div class="sb-loc sb-fade">
           <span class="sb-loc-dot"></span>
           <span class="sb-loc-col">
@@ -1112,6 +1115,10 @@ html[data-theme="light"] #attach-sheet .at-grab{background:#747775}
             <span>Based on your places (Home)</span>
           </span>
           <button class="sb-loc-refresh" onclick="app.openSettingsModal(); app.switchSettingsTab('profile')" aria-label="Update location" title="Update location"><svg fill="none"><use href="#s-refresh"></use></svg></button>
+        </div>
+        <div class="sb-row sb-user">
+          <span class="sb-ico"><span class="sb-avatar sparkle-bg"><span id="user-avatar-initial">U</span></span></span>
+          <span class="sb-label"><span id="user-display-name">user</span></span>
         </div>
         <button id="nav-settings-btn" onclick="app.toggleSettingsMenu(event)" aria-label="Settings" title="Settings">
           <svg fill="currentColor"><use href="#nav-settings"></use></svg><span id="key-status-indicator" class="sb-keydot"></span>
