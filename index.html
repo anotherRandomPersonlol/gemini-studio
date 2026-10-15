@@ -1112,9 +1112,9 @@ html[data-theme="light"] #attach-sheet .at-grab{background:#747775}
           <span class="sb-loc-dot"></span>
           <span class="sb-loc-col">
             <span id="user-location-display">Earth</span>
-            <span>Based on your places (Home)</span>
+            <span id="user-location-sub">Based on your places (Home)</span>
           </span>
-          <button class="sb-loc-refresh" onclick="app.openSettingsModal(); app.switchSettingsTab('profile')" aria-label="Update location" title="Update location"><svg fill="none"><use href="#s-refresh"></use></svg></button>
+          <button class="sb-loc-refresh" onclick="app.refreshLocation()" aria-label="Update location" title="Update location"><svg fill="none"><use href="#s-refresh"></use></svg></button>
         </div>
         <div class="sb-row sb-user">
           <span class="sb-ico"><span class="sb-avatar sparkle-bg"><span id="user-avatar-initial">U</span></span></span>
@@ -1464,9 +1464,24 @@ html[data-theme="light"] #attach-sheet .at-grab{background:#747775}
               <label class="block font-semibold text-white mb-1">Display Name</label>
               <input type="text" id="user-name-input" autocomplete="off" value="user" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
             </div>
-            <div>
-              <label class="block font-semibold text-white mb-1">Location Label</label>
-              <input type="text" id="user-location-input" value="Earth" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
+            <div class="space-y-2">
+              <label class="block font-semibold text-white mb-1">Location</label>
+              <select id="loc-mode-select" onchange="app.setLocMode(this.value)" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
+                <option value="manual">Type it myself</option>
+                <option value="browser">Use my device location (the browser asks first)</option>
+                <option value="ip">Detect from my IP address</option>
+                <option value="off">Off</option>
+              </select>
+              <input type="text" id="user-location-input" value="Earth" autocomplete="off" placeholder="City, country" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
+              <div id="loc-detect-row" class="flex items-center gap-3">
+                <button type="button" onclick="app.detectLocation(app.locMode(), false)" class="px-3 py-2 bg-[#1e1f20] text-gemini-muted hover:text-white rounded-xl text-xs shrink-0">Detect now</button>
+                <span id="loc-status" class="text-[11px] text-gemini-muted"></span>
+              </div>
+              <label id="loc-share-row" class="flex items-center justify-between gap-3 text-xs text-gemini-muted">
+                <span>Tell the model where I am (for weather, local time and nearby places)</span>
+                <input type="checkbox" id="loc-share" onchange="app.setLocShare(this.checked)" class="w-4 h-4 accent-gemini-accent cursor-pointer shrink-0">
+              </label>
+              <p class="text-[11px] text-gemini-muted leading-relaxed">IP detection asks ipwho.is for your approximate town. Device location sends coordinates rounded to about 1 km to bigdatacloud.net to get the town name. Your location goes to the AI only if the box above is ticked, and never with "Off".</p>
             </div>
 
             <div class="pt-2 border-t border-[#2b2c2e] flex items-center justify-between gap-3">
@@ -1776,6 +1791,8 @@ This app renders plain Markdown only — never output custom XML-style tags (e.g
 
         this.updateKeyBadge();
         this.applyLabels();
+        this.applyLocUI();
+        this.autoLocation();
         this.renderExtraModels();
         ['gemini', 'anthropic', 'openai'].forEach(pp => { if (this.hasRealKey(pp) && (pp === 'gemini' || !localStorage.getItem('gemini_models_' + pp))) this.fetchProviderModels(pp, true); });
       }
@@ -1835,7 +1852,7 @@ This app renders plain Markdown only — never output custom XML-style tags (e.g
 
       updateUserUI() {
         document.getElementById('user-display-name').innerText = this.userName;
-        document.getElementById('user-location-display').innerText = this.userLocation;
+        this.applyLocUI();
         this.renderGreeting();
         document.getElementById('user-avatar-initial').innerText = this.userName.charAt(0).toUpperCase();
         { const mi = document.getElementById('mobile-avatar-initial'); if (mi) mi.innerText = this.userName.charAt(0).toUpperCase(); }
@@ -4426,7 +4443,7 @@ This app renders plain Markdown only — never output custom XML-style tags (e.g
         });
       }
       contextBlock() {
-        let out = '';
+        let out = this.locationBlock();
         if (this.lsGet('gemini_ins_on', '1') !== '0') {
           const l = this.instructionsList();
           if (l.length) out += '\n\nThe user\'s own standing instructions for every reply:\n' + l.map(x => '- ' + x.text).join('\n');
@@ -4460,6 +4477,98 @@ This app renders plain Markdown only — never output custom XML-style tags (e.g
         if (fly) fly.classList.add('hidden');
         const row = document.getElementById('nav-row-more');
         if (row) row.classList.remove('is-active');
+      }
+
+      /* ---------------- LOCATION (manual / device / IP) ---------------- */
+      locMode() { const m = this.lsGet('gemini_loc_mode', 'manual'); return ['manual', 'browser', 'ip', 'off'].includes(m) ? m : 'manual'; }
+      locShare() { return this.lsGet('gemini_loc_share', '1') !== '0'; }
+      locData() { try { return JSON.parse(localStorage.getItem('gemini_loc_data') || 'null'); } catch (e) { return null; } }
+      locationLabel() {
+        const m = this.locMode();
+        if (m === 'browser' || m === 'ip') { const d = this.locData(); if (d && d.source === m && d.label) return d.label; return m === 'ip' ? 'Detecting…' : 'Location not set'; }
+        return this.userLocation;
+      }
+      locationSub() {
+        const m = this.locMode();
+        if (m === 'ip') return 'From your IP address';
+        if (m === 'browser') return 'From your device location';
+        return 'Based on your places (Home)';
+      }
+      applyLocUI() {
+        const m = this.locMode();
+        const lab = document.getElementById('user-location-display'); if (lab) lab.innerText = this.locationLabel();
+        const sub = document.getElementById('user-location-sub'); if (sub) sub.innerText = this.locationSub();
+        const blk = document.querySelector('.sb-loc'); if (blk) blk.style.display = m === 'off' ? 'none' : '';
+        const sel = document.getElementById('loc-mode-select'); if (sel) sel.value = m;
+        const inp = document.getElementById('user-location-input'); if (inp) inp.style.display = m === 'manual' ? '' : 'none';
+        const row = document.getElementById('loc-detect-row'); if (row) row.style.display = (m === 'browser' || m === 'ip') ? '' : 'none';
+        const sh = document.getElementById('loc-share-row'); if (sh) sh.style.display = m === 'off' ? 'none' : '';
+        const cb = document.getElementById('loc-share'); if (cb) cb.checked = this.locShare();
+        const st = document.getElementById('loc-status'); const d = this.locData();
+        if (st) st.textContent = (m === 'browser' || m === 'ip') && d && d.source === m ? `${d.label}${d.ts ? ' · checked ' + new Date(d.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}` : '';
+      }
+      setLocMode(m) {
+        try { localStorage.setItem('gemini_loc_mode', m); } catch (e) { /* ignore */ }
+        this.applyLocUI();
+        if (m === 'ip' || m === 'browser') { const d = this.locData(); if (!d || d.source !== m) this.detectLocation(m, false); }
+      }
+      setLocShare(v) { try { localStorage.setItem('gemini_loc_share', v ? '1' : '0'); } catch (e) { /* ignore */ } }
+      refreshLocation() {
+        const m = this.locMode();
+        if (m === 'ip' || m === 'browser') this.detectLocation(m, false);
+        else { this.openSettingsModal(); this.switchSettingsTab('profile'); }
+      }
+      async detectLocation(mode, quiet) {
+        const st = document.getElementById('loc-status');
+        const say = (t) => { if (st) st.textContent = t; };
+        say('Detecting…');
+        try {
+          let d;
+          if (mode === 'ip') {
+            let j = null;
+            try { const r = await fetch('https://ipwho.is/'); j = await r.json(); if (!j || j.success === false) j = null; } catch (e) { j = null; }
+            if (j) d = { city: j.city, region: j.region, country: j.country, lat: j.latitude, lon: j.longitude, tz: j.timezone && j.timezone.id };
+            else {
+              const r2 = await fetch('https://ipapi.co/json/'); const k = await r2.json();
+              if (!k || k.error) throw new Error('IP lookup failed');
+              d = { city: k.city, region: k.region, country: k.country_name, lat: k.latitude, lon: k.longitude, tz: k.timezone };
+            }
+          } else {
+            if (!navigator.geolocation) throw new Error('This browser has no location support');
+            const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { timeout: 12000, maximumAge: 600000 }));
+            const lat = Math.round(pos.coords.latitude * 100) / 100, lon = Math.round(pos.coords.longitude * 100) / 100;
+            d = { lat, lon, tz: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone };
+            try {
+              const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=${(navigator.language || 'en').slice(0, 2)}`);
+              const j = await r.json(); d.city = j.city || j.locality; d.region = j.principalSubdivision; d.country = j.countryName;
+            } catch (e) { /* keep coordinates only */ }
+          }
+          const label = [d.city, d.country].filter(Boolean).join(', ') || (d.lat != null ? `${d.lat}, ${d.lon}` : '');
+          if (!label) throw new Error('No location found');
+          localStorage.setItem('gemini_loc_data', JSON.stringify({ source: mode, label, city: d.city || '', region: d.region || '', country: d.country || '', lat: d.lat, lon: d.lon, tz: d.tz || '', ts: Date.now() }));
+          this.applyLocUI();
+          if (!quiet) this.showToast('Location: ' + label, 'success');
+        } catch (e) {
+          const msg = e && e.code === 1 ? 'Location permission was denied. Allow it in the browser, or pick another option.' : (e && e.message ? e.message : 'Could not detect location');
+          say(msg); this.applyLocUI(); say(msg);
+          if (!quiet) this.showToast(msg, 'warning');
+        }
+      }
+      autoLocation() {
+        const m = this.locMode(); const d = this.locData();
+        const stale = !d || d.source !== m || Date.now() - (d.ts || 0) > 6 * 3600 * 1000;
+        if (!stale) return;
+        if (m === 'ip') this.detectLocation('ip', true);
+        else if (m === 'browser' && navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') this.detectLocation('browser', true); }).catch(() => {});
+      }
+      locationBlock() {
+        const m = this.locMode();
+        if (m === 'off' || !this.locShare()) return '';
+        if (m === 'manual') { const l = (this.userLocation || '').trim(); return (!l || /^earth$/i.test(l)) ? '' : `\n\nThe user says they are in ${l}. Use that for weather, local time and nearby places without asking where they are.`; }
+        const d = this.locData();
+        if (!d || d.source !== m || !d.label) return '';
+        const where = d.lat != null ? ` (about ${d.lat}, ${d.lon})` : '';
+        return `\n\nThe user's approximate location is ${d.label}${where}, from their ${m === 'ip' ? 'IP address, which can be off by a city or more' : 'device location'}${d.tz ? '; time zone ' + d.tz : ''}. Use it for weather, local time and nearby places without asking where they are, and search for current data when the answer needs it.`;
       }
 
       recentsLabel() { return this.exactLabels ? 'All' : 'Recents'; }
