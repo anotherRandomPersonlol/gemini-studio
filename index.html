@@ -775,6 +775,7 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
     /* keep the chat menu button clear of messages */
     @media (min-width: 768px) { #chat-thread-container { padding-top: 4rem; } }
     @media (min-width: 768px) and (max-width: 1100px) { #chat-thread-container { padding-right: 3.75rem; padding-left: 1rem; } }
+    .key-mask { -webkit-text-security: disc; text-security: disc; }
     /* ---- attachment (+) menu ---- */
     #attach-btn svg.t-plus-ico { width: 1.1rem; height: 1.1rem; transition: transform .2s cubic-bezier(.2,0,0,1); }
     #attach-btn.is-open svg.t-plus-ico { transform: rotate(45deg); }
@@ -1561,7 +1562,7 @@ html[data-theme="light"] .ph-sec{color:#0b57d0}
 
             <!-- Add Key Form -->
             <div class="flex items-center gap-2 pt-2">
-              <input type="password" id="new-api-key-input" placeholder="Paste a Gemini, Claude or OpenAI API key" class="flex-1 bg-[#131314] text-white px-4 py-2.5 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs font-mono">
+              <input type="text" id="new-api-key-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-form-type="other" class="key-mask" placeholder="Paste a Gemini, Claude or OpenAI API key" class="flex-1 bg-[#131314] text-white px-4 py-2.5 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs font-mono">
               <button onclick="app.addApiKey()" class="px-4 py-2.5 bg-gemini-accent text-gemini-bg font-semibold rounded-xl hover:bg-gemini-accentHover transition shrink-0">
                 Add Key
               </button>
@@ -1601,7 +1602,7 @@ html[data-theme="light"] .ph-sec{color:#0b57d0}
           <div id="tab-content-profile" class="hidden space-y-4">
             <div>
               <label class="block font-semibold text-white mb-1">Display Name</label>
-              <input type="text" id="user-name-input" value="user" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
+              <input type="text" id="user-name-input" autocomplete="off" value="user" class="w-full bg-[#131314] text-white px-4 py-2 rounded-xl border border-[#333537] focus:outline-none focus:border-gemini-accent text-xs">
             </div>
             <div>
               <label class="block font-semibold text-white mb-1">Location Label</label>
