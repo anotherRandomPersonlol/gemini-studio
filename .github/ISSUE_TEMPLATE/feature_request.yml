@@ -1,0 +1,21 @@
+name: Feature request
+description: Ask for a new feature, or a change that makes the app closer to the real Gemini app.
+title: "[Feature] <short description>"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need
+      description: Tell what you want to do and why the app does not do it now.
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Reference from the real Gemini app (optional)
+      description: If the feature copies the real Gemini app, attach a screenshot or a short screen recording, and tell if it is the web app or the phone app.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution (optional)

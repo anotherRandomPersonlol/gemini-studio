@@ -1,0 +1,105 @@
+name: Bug report
+description: Report something in the app that does not work or looks wrong.
+title: "[Bug] <short problem>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form when something in Gemini Studio does not work or looks wrong.
+
+        **Do not paste API keys.** Issues are public. Check your screenshots and logs before you send them, and cover any key.
+
+        Before you send the report:
+        1. Hard-refresh the page (Ctrl+Shift+R, or Cmd+Shift+R on a Mac) to get the latest version.
+        2. Do the same action again.
+        3. Make sure that the problem is still there.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Problem area
+      multiple: true
+      options:
+        - Sending a message or getting a reply
+        - API keys, Settings or Test connection
+        - Model menu (Auto, More models, Thinking level)
+        - Image creation
+        - "@ menu, skills or connectors"
+        - Temporary chat
+        - Sidebar, chat list, search or pinning
+        - Library, Scheduled, Students or Customize pages
+        - Phone layout
+        - Light or dark theme
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      description: The provider of the model that you used. Select "Not related" if the problem is not about a reply.
+      options:
+        - Gemini
+        - Claude
+        - ChatGPT
+        - DeepSeek
+        - Qwen
+        - Kimi
+        - Llama
+        - Custom endpoint
+        - Not related
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: The model name in the model menu, for example "Gemini Auto" or "3.1 Pro Preview".
+      placeholder: Gemini Auto
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: "Chrome 141 on Windows 10, or Samsung Internet on a Galaxy S20 FE"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Write one action on each line.
+      placeholder: |
+        1. Open the app.
+        2. Select a model.
+        3. Send "hello".
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result and actual result
+      description: Tell what you expected and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error text
+      description: |
+        Copy the error that the app shows, for example the red "Error:" line in the chat or the message in the pop-up.
+        If the problem is about a provider, open Settings > API keys, click **Test** and copy the result.
+      render: text
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser console (optional)
+      description: |
+        1. Press F12 and open the Console tab.
+        2. Do the action again.
+        3. Copy the red lines and paste them here. Remove any API key first.
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots (optional)
+      description: Attach a screenshot of the problem. Cover your API keys and any private chat text.
