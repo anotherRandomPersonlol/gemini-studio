@@ -910,6 +910,7 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
     .gs-chip.gs-warn { background: #5c4300; color: #ffdf99; }
     .gs-add { display: flex; gap: .5rem; align-items: center; }
     #settings-modal select.gs-prov { width: auto; flex: none; padding: 0 .75rem !important; }
+    #settings-modal select.gs-prov.gs-need { outline: 2px solid #f9ab00; outline-offset: 1px; }
     .gs-field, #settings-modal input[type="text"], #settings-modal select, #settings-modal textarea { background: transparent !important; color: #e3e3e3 !important; border: 1px solid #8e918f !important; border-radius: .75rem !important; outline: none; font-size: .875rem !important; }
     #settings-modal input[type="text"], #settings-modal select { height: 3rem; padding: 0 1rem !important; }
     #settings-modal textarea { padding: .75rem 1rem !important; }
@@ -1620,6 +1621,16 @@ html[data-theme="light"] .img-creating .ic-box{background:linear-gradient(100deg
                 <button type="button" onclick="app.testConnection()" class="gs-btn gs-outlined">Test</button>
               </div>
               <pre id="key-test-result" class="gs-pre"></pre>
+              <div class="gs-row">
+                <span><b>Custom endpoint</b><small>Optional. Send one provider's requests to your own proxy or another OpenAI-compatible base URL (ending before /chat/completions). Use it when a provider blocks calls from web pages.</small></span>
+              </div>
+              <div class="gs-add">
+                <select id="base-override-provider" class="gs-prov" aria-label="Provider for custom endpoint" onchange="app.showBaseOverride()">
+                  <option value="openai">ChatGPT</option><option value="deepseek">DeepSeek</option><option value="qwen">Qwen</option><option value="kimi">Kimi</option><option value="llama">Llama</option>
+                </select>
+                <input type="text" id="base-override-url" autocomplete="off" spellcheck="false" class="gs-field" placeholder="https://your-proxy.example/v1">
+                <button type="button" onclick="app.saveBaseOverride()" class="gs-btn gs-outlined">Save</button>
+              </div>
             </div>
           </div>
 
@@ -1851,7 +1862,7 @@ html[data-theme="light"] .img-creating .ic-box{background:linear-gradient(100deg
       const IMG_TEMPLATES = [
         { name: 'Zen', emoji: '🧘', bg: 'linear-gradient(160deg,#c9d6e8,#7f93b8 60%,#3d4b6b)', prompt: 'Using my photo, make a serene portrait of me meditating in a calm, misty space with soft natural light. Keep my face recognisable.' },
         { name: 'Sommelier', emoji: '🍷', bg: 'linear-gradient(160deg,#6b3a2a,#3a1f17 60%,#1c0f0b)', prompt: 'Using my photo, make a portrait of me as a sommelier in a warm wine cellar, holding a glass of red wine. Keep my face recognisable.' },
-        { name: 'Wood', emoji: '🪵', bg: 'linear-gradient(160deg,#c08a52,#8a5a2e 60%,#4a2f17)', prompt: 'Using my photo, make a detailed hand-carved wooden sculpture of me, with visible grain and tool marks. Keep my face recognisable.' },
+        { name: 'Wood', emoji: '🌳', bg: 'linear-gradient(160deg,#c08a52,#8a5a2e 60%,#4a2f17)', prompt: 'Using my photo, make a detailed hand-carved wooden sculpture of me, with visible grain and tool marks. Keep my face recognisable.' },
         { name: 'Arcade', emoji: '🕹️', bg: 'linear-gradient(160deg,#5b2a86,#1f6fd1 55%,#0b1b3a)', prompt: 'Using my photo, make a portrait of me in a neon-lit retro arcade, with colourful game screens behind me. Keep my face recognisable.' },
         { name: 'Studio', emoji: '📸', bg: 'linear-gradient(160deg,#f1f1f1,#bdbdbd 60%,#777)', prompt: 'Using my photo, make a clean studio fashion portrait of me on a plain light background with soft professional lighting. Keep my face recognisable.' }
       ];
@@ -1903,7 +1914,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         fallbackModels: [{ id: 'qwen3.7-plus', label: 'Qwen 3.7 Plus' }, { id: 'qwen-max', label: 'Qwen Max' }, { id: 'qwen-plus', label: 'Qwen Plus' }, { id: 'qwen-flash', label: 'Qwen Flash' }] },
       kimi: { name: 'Kimi', privacyName: 'Kimi API (Moonshot AI)', privacy: 'https://platform.moonshot.ai/docs/agreement/userprivacy', base: 'https://api.moonshot.ai/v1', usage: false, keyUrl: 'https://platform.moonshot.ai/console/api-keys', site: 'the Moonshot AI platform', keyBtn: 'Create API Key',
         fallbackModels: [{ id: 'kimi-k3', label: 'Kimi K3' }, { id: 'kimi-k2.6', label: 'Kimi K2.6' }] },
-      llama: { name: 'Llama', privacyName: 'Llama API (Meta)', privacy: 'https://www.facebook.com/privacy/policy/', base: 'https://api.llama.com/compat/v1', usage: false, keyUrl: 'https://llama.developer.meta.com/', site: 'the Llama Developer site', keyBtn: 'Create API key',
+      llama: { name: 'Llama', privacyName: 'Llama API (Meta)', privacy: 'https://www.facebook.com/privacy/policy/', base: 'https://api.llama.com/compat/v1', modelsUrl: 'https://api.llama.com/v1/models', usage: false, keyUrl: 'https://llama.developer.meta.com/', site: 'the Llama Developer site', keyBtn: 'Create API key',
         fallbackModels: [{ id: 'Llama-4-Maverick-17B-128E-Instruct-FP8', label: 'Llama 4 Maverick' }, { id: 'Llama-4-Scout-17B-16E-Instruct-FP8', label: 'Llama 4 Scout' }] }
     };
     const PROVIDER_IDS = Object.keys(PROVIDERS);
@@ -1920,7 +1931,8 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         this.tempMode = false; this.imageMode = false; this._modesReady = true;
         this.thinkingLevel = localStorage.getItem('gemini_thinking_level') || '';
         try { this.activeByProv = JSON.parse(localStorage.getItem('gemini_active_by_prov') || '{}') || {}; } catch (e) { this.activeByProv = {}; }
-        this.apiKeys.forEach(k => { if (!k.provider || !PROVIDERS[k.provider]) k.provider = this.providerOfKey(k.key); });
+        this.apiKeys.forEach(k => { if (!k.provider || !PROVIDERS[k.provider]) k.provider = this.providerOfKey(k.key); k.isRateLimited = false; });
+        try { this.baseOverrides = JSON.parse(localStorage.getItem('gemini_base_overrides') || '{}') || {}; } catch (e) { this.baseOverrides = {}; }
         this.autoRotateKeys = localStorage.getItem('gemini_auto_rotate') !== 'false';
         
         this.systemInstruction = localStorage.getItem('gemini_system_instruction');
@@ -2086,37 +2098,81 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
       /* ---------------- API KEY ROTATION & CALL WRAPPER ---------------- */
       netError(p, fe) {
         if (fe && fe.name === 'AbortError') return fe;
-        const host = { gemini: 'generativelanguage.googleapis.com', anthropic: 'api.anthropic.com' }[p] || (PROVIDERS[p] && PROVIDERS[p].base ? new URL(PROVIDERS[p].base).host : p);
-        const e = new Error(`Couldn't reach ${host} (${fe && fe.message ? fe.message : 'network error'}). Something between this page and ${PROVIDERS[p].name} blocked the request: the page sandbox's network policy, an ad blocker/VPN, or no internet. Open Settings > API Keys > Test connection for details.`);
+        const host = p === 'gemini' ? 'generativelanguage.googleapis.com' : p === 'anthropic' ? 'api.anthropic.com' : new URL(this.baseOf(p)).host;
+        let msg;
+        if (p === 'openai' && !(this.baseOverrides || {}).openai) {
+          msg = `The browser blocked the request to ${host} (${fe && fe.message ? fe.message : 'network error'}). OpenAI's server currently rejects chat requests sent straight from a web page (its CORS check fails before your key is even sent), so this is not a key problem. OpenAI has broken and fixed this before. Until it works again, route ChatGPT through your own proxy: Settings > API Keys > Custom endpoint.`;
+        } else {
+          msg = `Couldn't reach ${host} (${fe && fe.message ? fe.message : 'network error'}). The browser blocked the request before it reached ${PROVIDERS[p].name}: the server refused this page's origin (CORS), an ad blocker or VPN stopped it, or there is no internet. Open Settings > API Keys > Test connection for details.`;
+        }
+        const e = new Error(msg);
         e.cause = fe;
         return e;
       }
 
       async testConnection() {
         const out = [];
+        const box = document.getElementById('key-test-result');
+        if (box) box.textContent = 'Testing...';
+        const msgOf = async (r) => { const d = await r.json().catch(() => ({})); return d.error && d.error.message ? d.error.message : (d.detail || d.title || 'rejected'); };
         for (const p of PROVIDER_IDS) {
           if (!this.hasRealKey(p)) continue;
           const key = this.getActiveApiKey(p);
-          const url = p === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1' : p === 'anthropic' ? 'https://api.anthropic.com/v1/models?limit=1' : PROVIDERS[p].base + '/models';
+          const name = PROVIDERS[p].name;
+          const url = p === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1' : p === 'anthropic' ? 'https://api.anthropic.com/v1/models?limit=1' : this.modelsUrlOf(p);
           const headers = p === 'gemini' ? { 'x-goog-api-key': key } : this.providerHeaders(p, key);
+          let line;
           try {
             const r = await fetch(url, { headers });
-            if (r.ok) out.push(`${PROVIDERS[p].name}: reachable, key accepted`);
-            else { const d = await r.json().catch(() => ({})); out.push(`${PROVIDERS[p].name}: reachable, but HTTP ${r.status}: ${d.error && d.error.message ? d.error.message : 'rejected'}`); }
+            line = r.ok ? `${name}: key accepted` : `${name}: key rejected, HTTP ${r.status}: ${await msgOf(r)}`;
           } catch (e) {
-            out.push(`${PROVIDERS[p].name}: BLOCKED (${e && e.message}). The request never left the page, so this is the sandbox, browser or network, not the key.`);
+            line = `${name}: model list BLOCKED by the browser (${e && e.message})`;
           }
+          // Chat requests are POSTs with the key header, and some servers only allow GETs from a web page, so test the POST too.
+          // The body is empty on purpose: the server rejects it as invalid, so no tokens are used.
+          if (p !== 'gemini') {
+            const chatUrl = p === 'anthropic' ? 'https://api.anthropic.com/v1/messages' : this.baseOf(p) + '/chat/completions';
+            try {
+              await fetch(chatUrl, { method: 'POST', headers, body: '{}' });
+              line += '; chat endpoint reachable';
+            } catch (e) {
+              line += `; chat endpoint BLOCKED by the browser (CORS). Chats with ${name} can't work from this page${p === 'openai' ? ' until OpenAI fixes it, or use a Custom endpoint (proxy) below' : ''}.`;
+            }
+          }
+          out.push(line);
         }
         if (!out.length) out.push('Add an API key first.');
-        const box = document.getElementById('key-test-result');
         if (box) box.textContent = out.join('\n');
         else this.showToast(out.join(' | '), 'info');
       }
 
       providerSystem(p, text) { return (p === 'gemini' || !text) ? text : text.replace(/^You are Gemini\b/, 'You are ' + PROVIDERS[p].name); }
       providerOfKey(k) { k = (k || '').trim(); if (k.startsWith('sk-ant-')) return 'anthropic'; if (/^LLM\|/.test(k)) return 'llama'; if (k.startsWith('sk-')) return 'openai'; return 'gemini'; }
-      providerOfModel(id) { id = String(id || ''); if (/^claude/i.test(id)) return 'anthropic'; if (/^(gpt|chatgpt|chat-latest|codex|o\d)/i.test(id)) return 'openai'; if (/^deepseek/i.test(id)) return 'deepseek'; if (/^(qwen|qwq|qvq)/i.test(id)) return 'qwen'; if (/^(kimi|moonshot)/i.test(id)) return 'kimi'; if (/^llama/i.test(id)) return 'llama'; return 'gemini'; }
+      providerOfModelByName(id) { id = String(id || ''); if (/^claude/i.test(id)) return 'anthropic'; if (/^(gpt|chatgpt|chat-latest|codex|o\d)/i.test(id)) return 'openai'; if (/^deepseek/i.test(id)) return 'deepseek'; if (/^(qwen|qwq|qvq)/i.test(id)) return 'qwen'; if (/^(kimi|moonshot)/i.test(id)) return 'kimi'; if (/^llama/i.test(id)) return 'llama'; return 'gemini'; }
+      providerOfModel(id) {
+        id = String(id || '');
+        const guess = this.providerOfModelByName(id);
+        // A provider can host other vendors' models (Qwen's endpoint serves deepseek-* and kimi-*, Llama's serves Cerebras-Llama-*),
+        // so trust the list the model was picked from before the name.
+        const owners = EXTRA_PROVIDERS.filter(p => this.hasRealKey(p) && this.loadProviderModels(p).some(m => m.id === id));
+        if (owners.length) return owners.includes(guess) ? guess : owners[0];
+        return guess;
+      }
       keysOf(p) { return this.apiKeys.filter(k => (k.provider || 'gemini') === p); }
+      keyIsAmbiguous(k) { k = (k || '').trim(); return k.startsWith('sk-') && !/^sk-(ant|proj|svcacct|admin|None)-/.test(k); }
+      baseOf(p) { const o = (this.baseOverrides || {})[p]; return o ? o.replace(/\/+$/, '') : PROVIDERS[p].base; }
+      modelsUrlOf(p) { return (this.baseOverrides || {})[p] ? this.baseOf(p) + '/models' : (PROVIDERS[p].modelsUrl || PROVIDERS[p].base + '/models'); }
+      saveBaseOverride() {
+        const sel = document.getElementById('base-override-provider'); const inp = document.getElementById('base-override-url');
+        if (!sel || !inp) return;
+        const p = sel.value, v = inp.value.trim();
+        if (v && !/^https:\/\/[^\s]+$/i.test(v)) { this.showToast('The endpoint must start with https://', 'warning'); return; }
+        if (v) this.baseOverrides[p] = v; else delete this.baseOverrides[p];
+        try { localStorage.setItem('gemini_base_overrides', JSON.stringify(this.baseOverrides)); } catch (e) { /* ignore */ }
+        this.showToast(v ? `${PROVIDERS[p].name} requests now go to ${v}` : `${PROVIDERS[p].name} uses its normal endpoint again`, 'success');
+        if (this.hasRealKey(p)) this.fetchProviderModels(p, true);
+      }
+      showBaseOverride() { const sel = document.getElementById('base-override-provider'); const inp = document.getElementById('base-override-url'); if (sel && inp) inp.value = (this.baseOverrides || {})[sel.value] || ''; }
       hasRealKey(p) { return this.keysOf(p).some(k => k.key); }
       getActiveKeyObj(p = 'gemini') {
         const list = this.keysOf(p);
@@ -2147,6 +2203,11 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         if (!key) return;
         const pick = document.getElementById('new-api-key-provider');
         const chosen = (typeof forced === 'string' && PROVIDERS[forced]) ? forced : (pick && PROVIDERS[pick.value] ? pick.value : '');
+        if (!chosen && this.keyIsAmbiguous(key)) {
+          this.showToast('This sk-... key could be ChatGPT, DeepSeek, Qwen or Kimi. Pick the provider in the list next to the box, then add it again.', 'warning');
+          if (pick) { pick.focus(); pick.classList.add('gs-need'); setTimeout(() => pick.classList.remove('gs-need'), 2500); }
+          return;
+        }
         const provider = chosen || this.providerOfKey(key);
         const n = this.keysOf(provider).length + 1;
         const pname = PROVIDERS[provider].name;
@@ -2244,13 +2305,14 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
             if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || 'HTTP ' + r.status);
             list = ((await r.json()).data || []).map(m => ({ id: m.id, label: m.display_name || m.id }));
           } else if (p !== 'openai') {
-            const r = await fetch(PROVIDERS[p].base + '/models', { headers: this.providerHeaders(p, k) });
+            const r = await fetch(this.modelsUrlOf(p), { headers: this.providerHeaders(p, k) });
             if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || 'HTTP ' + r.status);
-            list = ((await r.json()).data || [])
+            const j = await r.json();
+            list = (j.data || j.models || []).map(m => (m && !m.id && m.name ? { ...m, id: m.name } : m))
               .filter(m => m && m.id && !/(embed|rerank|tts|asr|audio|speech|image|video|wan|ocr|moderation)/i.test(m.id))
               .slice(0, 30).map(m => ({ id: m.id, label: m.id }));
           } else if (p === 'openai') {
-            const r = await fetch('https://api.openai.com/v1/models', { headers: this.providerHeaders(p, k) });
+            const r = await fetch(this.modelsUrlOf(p), { headers: this.providerHeaders(p, k) });
             if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error?.message || 'HTTP ' + r.status);
             list = ((await r.json()).data || [])
               .filter(m => /^(gpt|chatgpt|chat-latest|o\d)/i.test(m.id) && !/(image|audio|realtime|tts|transcribe|embedding|moderation|search|instruct|codex|whisper|dall|diarize|vision-preview|\d{4}-\d{2}-\d{2}$)/i.test(m.id))
@@ -2390,7 +2452,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
           if (req.system) body.system = req.system;
           if (!noSampling && req.temperature != null) body.temperature = Math.min(1, Math.max(0, req.temperature));
         } else {
-          url = PROVIDERS[p].base + '/chat/completions';
+          url = this.baseOf(p) + '/chat/completions';
           body = { model, stream: true, messages: req.system ? [{ role: 'system', content: req.system }].concat(messages) : messages };
           if (PROVIDERS[p].usage) body.stream_options = { include_usage: true };
           if (!noSampling && req.temperature != null) body.temperature = req.temperature;
@@ -2922,7 +2984,18 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         if (this.imgAspect) payload.generationConfig.imageConfig = { aspectRatio: this.imgAspect };
 
         const imageModel = this.isImageModel(this.selectedModel) ? this.selectedModel : 'gemini-3.1-flash-image';
-        const result = await this.executeGeminiCall(payload, imageModel, 0, this.currentAbortController?.signal || null);
+        let result;
+        try {
+          result = await this.executeGeminiCall(payload, imageModel, 0, this.currentAbortController?.signal || null);
+        } catch (e) {
+          // Free-tier keys get a hard quota of 0 for image models; the raw 429 text looks like a temporary rate limit.
+          if (e.status === 429 && /free_tier/i.test(e.message || '') && /limit:\s*0\b/.test(e.message || '')) {
+            const f = new Error(`Image models aren't included in the Gemini API free tier, so ${imageModel} has a quota of 0 on ${this.keysOf('gemini').length > 1 ? 'all your keys' : 'your key'}. Waiting won't help. To make images, turn on billing for the Google Cloud project behind the key (aistudio.google.com/apikey > Set up billing), or add a key from a project that has billing.`);
+            f.status = 429;
+            throw f;
+          }
+          throw e;
+        }
         const part = result?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
         if (part) {
@@ -3841,7 +3914,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         const bad = reason === 'invalid';
         card.innerHTML = `<div class="cd-logos kd-logo-${prov}">${this.providerIcon(prov)}</div>
           <h3>${bad ? 'That API key didn&#39;t work' : 'Add your ' + k.n + ' API key'}</h3>
-          <p>${bad ? 'Google rejected the key this app sent. It may be mistyped, deleted, or not enabled for the Gemini API.' : 'This app runs in your browser and talks to ' + k.n + ' with your own API key. You haven&#39;t added one yet.'}</p>
+          <p>${bad ? (prov === 'gemini' ? 'Google rejected the key this app sent. It may be mistyped, deleted, or not enabled for the Gemini API.' : k.n + ' rejected the key this app sent. It may be mistyped, deleted, or out of credit.') : 'This app runs in your browser and talks to ' + k.n + ' with your own API key. You haven&#39;t added one yet.'}</p>
           <ol class="kd-steps"><li>Open <a href="${k.url}" target="_blank" rel="noopener noreferrer">${k.site}</a> and sign in.</li><li>Choose <b>${k.btn}</b> and copy the key.</li><li>Paste it here.</li></ol>
           <input id="kd-input" type="text" class="key-mask kd-input" placeholder="Paste your API key" autocomplete="off" spellcheck="false">
           <p class="kd-note">The key is saved only in this browser. You can manage keys any time in Settings.</p>
@@ -3851,7 +3924,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
           const v = (document.getElementById('kd-input').value || '').trim();
           if (!v) { document.getElementById('kd-input').focus(); return; }
           const inp = document.getElementById('new-api-key-input');
-          if (inp) { inp.value = v; this.addApiKey(prov); } else { this.apiKeys.push({ id: Date.now(), key: v, provider: this.providerOfKey(v), label: 'Key', isRateLimited: false }); this.saveKeys(); }
+          if (inp) { inp.value = v; this.addApiKey(prov); } else { this.apiKeys.push({ id: Date.now(), key: v, provider: PROVIDERS[prov] ? prov : this.providerOfKey(v), label: 'Key', isRateLimited: false }); this.saveKeys(); }
           { const nk = this.apiKeys[this.apiKeys.length - 1]; if (nk && nk.key === v) { this.activeByProv = this.activeByProv || {}; this.activeByProv[nk.provider || 'gemini'] = nk.id; this.saveKeys(); this.renderKeyList(); } }
           this.updateKeyBadge();
           close();
