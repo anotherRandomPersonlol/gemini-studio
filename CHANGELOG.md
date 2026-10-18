@@ -6,6 +6,7 @@ The app has no version numbers. The GitHub Pages site always serves the latest `
 
 ### New
 - Streamed words now fade in one by one instead of appearing all at once.
+- Reply text is near-white (#f1f3f4) instead of grey, and bold is pure white, matching the Gemini app.
 - Phone: the welcome screen shows a wavy pattern of tiny sparkles for about a second, like the Gemini app.
 
 ### Fixed
