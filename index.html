@@ -725,7 +725,8 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
     .ws-logo { display: none; width: 2.25rem; height: 2.25rem; margin: 0 auto 1rem; }
     #notice-banner .nb-x { display: none; }
     @media (max-width: 767px) {
-      #main-chat-container.is-empty #input-zone { top: auto; bottom: .75rem; padding: 0 .75rem; }
+      #main-chat-container.is-empty #input-zone { top: auto; bottom: .75rem; padding: 0 .75rem; z-index: auto; }
+      #main-chat-container.is-empty #input-pill-wrap { z-index: 25; }
       #main-chat-container.is-empty #welcome-screen { position: fixed; left: 0; right: 0; top: 40%; bottom: auto; }
       #main-chat-container.is-empty .ws-logo { display: block; }
       #welcome-screen h1 { font-size: 1.75rem; line-height: 2.25rem; }
@@ -960,6 +961,11 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
       #glow-sparks { display: block; position: absolute; left: 0; right: 0; bottom: 0; width: 100%; pointer-events: none; z-index: 0; opacity: 0; }
       html .gemini-glow::after, html[data-theme="light"] .gemini-glow::after { background-image: none !important; }
     }
+    /* ---- streamed words fade in one by one ---- */
+    @keyframes wfade-in { from { opacity: 0; } to { opacity: 1; } }
+    .wfade { animation: wfade-in .38s ease-out both; }
+    @media (prefers-reduced-motion: reduce) { .wfade { animation: none; } }
+
     /* ---- YouTube cards ---- */
     .yt-card { margin-top: 1.25rem; max-width: 28.75rem; }
     .yt-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
@@ -2874,13 +2880,19 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
           }
         };
 
+        const stamps = [];   // recently revealed batches, so each word can fade in on its own
+        const FADE_WINDOW = 700;
         const renderTick = (finalState = null) => {
+          const now = performance.now();
+          while (stamps.length && now - stamps[0].t > FADE_WINDOW) stamps.shift();
+          const tailLen = (pendingBatch ? stamps.slice(0, -1) : stamps).reduce((n, st) => n + st.text.length, 0);
+          const committedOld = revealedRaw.slice(0, Math.max(0, revealedRaw.length - tailLen));
           chatObj.messages[msgIndex] = finalState || {
             role: 'model',
             isLoading: false,
             isStreaming: true,
-            _streamCommitted: revealedRaw,
-            _streamPending: pendingBatch,
+            _streamCommitted: committedOld,
+            _streamRecent: stamps.map(st => ({ text: st.text, t: st.t })),
             groundingSources: accumulatedSources,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           };
@@ -2917,6 +2929,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
             }
 
             pendingBatch = pickNextBatch(remaining);
+            stamps.push({ text: pendingBatch, t: performance.now() });
             renderTick();
             await new Promise(r => setTimeout(r, 25 + Math.random() * 55));
           }
@@ -3143,7 +3156,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
             let formattedContent = '';
             if (msg.isLoading && msg.imageGen) {
               formattedContent = `<div class="img-creating"><div class="ic-head"><svg class="ic-spin"><use href="#t-dots-spin"></use></svg><span>Creating your image</span></div><div class="ic-box" style="--ar:${String(msg.imageGen).replace(':', ' / ')}"></div></div>`;
-            } else if (msg.isLoading && !msg._streamCommitted && !msg._streamPending) {
+            } else if (msg.isLoading && !msg._streamCommitted && !(msg._streamRecent && msg._streamRecent.length)) {
               formattedContent = `
                 <div class="flex items-center gap-2 text-gemini-muted text-sm loading-pulse">
                   <svg class="w-4 h-4 object-contain" viewBox="0 0 192 192"><use href="#gemini-logo"></use></svg>
@@ -3151,8 +3164,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
                 </div>
               `;
             } else if (msg.isStreaming) {
-              formattedContent = this.formatMarkdownContent(msg._streamCommitted || '') +
-                `<span class="reveal-fade">${this.escapeHtml(msg._streamPending || '')}</span>`;
+              formattedContent = this.formatMarkdownContent(msg._streamCommitted || '') + this.fadeWordsHtml(msg._streamRecent || []);
             } else {
               formattedContent = this.formatMarkdownContent(msg.text);
             }
@@ -3982,6 +3994,23 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         if (p === 'llama') return '<svg fill="currentColor"><use href="#p-meta"></use></svg>';
         if (p === 'kimi') return '<img src="' + KIMI_ICON + '" alt="" style="border-radius:22%">';
         return '<svg viewBox="0 0 192 192"><use href="#gemini-logo"></use></svg>';
+      }
+
+      // Recently revealed text: every word is its own span with a fade-in. The negative
+      // delay keeps a word's fade going when the thread is re-rendered mid-animation.
+      fadeWordsHtml(recent) {
+        const now = performance.now(); let out = '';
+        recent.forEach(st => {
+          const age = now - st.t;
+          const parts = st.text.split(/(\s+)/); const n = parts.filter(p => p && !/^\s+$/.test(p)).length || 1;
+          const step = Math.min(70, 240 / n); let i = 0;
+          parts.forEach(p => {
+            if (!p) return;
+            if (/^\s+$/.test(p)) { out += p.replace(/\n/g, '<br>'); return; }
+            out += `<span class="wfade" style="animation-delay:${Math.round(i * step - age)}ms">${this.escapeHtml(p)}</span>`; i++;
+          });
+        });
+        return out;
       }
 
       /* ---------------- "add your API key" dialog ---------------- */

@@ -2,6 +2,16 @@
 
 The app has no version numbers. The GitHub Pages site always serves the latest `main` branch. This file lists the changes by date.
 
+## 2026-10-19
+
+### New
+- Streamed words now fade in one by one instead of appearing all at once.
+- Phone: the welcome screen shows a wavy pattern of tiny sparkles for about a second, like the Gemini app.
+
+### Fixed
+- Phone: the greeting and Gemini icon no longer show through the "You're in control of your settings" notice.
+- Sidebar icons are sharper. The search and sidebar icons are grey again.
+
 ## 2026-10-17
 
 ### New
