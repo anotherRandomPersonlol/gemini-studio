@@ -11,7 +11,7 @@ The app has no version numbers. The GitHub Pages site always serves the latest `
 - Phone message box: the box stays tall after the text wraps, until the field is empty. The new setting **Exact Gemini message box** turns this off. Then the box goes back to one line when the text is short, and `**bold**`, `*italic*` and `` `code` `` show colour as you type.
 - Phone sidebar: Search chats, Scheduled, Students, Customize, Videos, Library and Gems (no Images or More). "All" with a filter icon, an **Upgrade** button and a settings button at the bottom. The sidebar closes as soon as you tap a chat or a row.
 - Phone: **Live**. Tap the wave button, speak, and Gemini answers by voice. It uses your browser's speech recognition and speech synthesis, not Google's Live API, so camera and screen sharing do not work. Text appears in pieces about once a second.
-- Phone: the Live button is a deep blue circle with three white lines (light blue with black lines in light mode). The empty message box is a little shorter and grows when you tap it or type.
+- Phone: the Live button is a deep blue circle with three white lines (light blue with black lines in light mode). The empty message box is narrower and widens when you tap it or type.
 - You can now attach videos and PDFs (up to 18 MB for video) as well as images.
 - Streamed words now fade in one by one instead of appearing all at once.
 - Reply text is near-white (#f1f3f4) instead of grey, and bold is pure white, matching the Gemini app.

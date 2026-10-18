@@ -1126,8 +1126,9 @@ html[data-theme="light"] { --pu-bg: #faf9f9; --pu-bg0: rgba(250,249,249,0); }
   #main-chat-container.is-empty #mobile-topbar::before { display: none; }
 
   /* ---- single-line pill: plus, text, mic, send / Live ---- */
-  #input-pill { min-height: 3rem; padding: .25rem .5rem; column-gap: .25rem; border-radius: 1.75rem; border-color: transparent !important; transition: min-height .15s, padding .15s, border-radius .15s; }
-  #input-pill:focus-within, #input-pill.has-text, #input-pill.has-attach, #input-pill.is-multiline { min-height: 3.5rem; padding: .5rem; }
+  #input-pill { min-height: 3.5rem; padding: .5rem; column-gap: .25rem; border-radius: 1.75rem; border-color: transparent !important; margin: 0 1.25rem; transition: margin .18s ease, border-radius .15s; }
+  /* Empty and not focused: the box is narrower. Focus or text: full width. */
+  #input-pill:focus-within, #input-pill.has-text, #input-pill.has-attach, #input-pill.is-multiline { margin: 0; }
   #input-pill.is-multiline { row-gap: .125rem; }
   #input-pill .ip-textarea { padding: .5rem 0 .5rem .25rem; }
   #input-pill.is-multiline .ip-textarea { padding: .5rem .75rem .25rem; }
