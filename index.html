@@ -970,6 +970,9 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
     .msg-model .mm-body .prose.prose-invert { --tw-prose-body: #f1f3f4; --tw-prose-bullets: #c4c7c5; --tw-prose-counters: #c4c7c5; --tw-prose-bold: #fff; color: #f1f3f4; }
     .msg-model .mm-body .prose strong { color: #fff; }
 
+    /* ---- placeholder never wraps or scrolls ---- */
+    #prompt-input:placeholder-shown { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
     /* ---- YouTube cards ---- */
     .yt-card { margin-top: 1.25rem; max-width: 28.75rem; }
     .yt-head { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
@@ -1251,6 +1254,26 @@ html[data-theme="light"] { --pu-bg: #faf9f9; --pu-bg0: rgba(250,249,249,0); }
   html[data-theme="light"] #live-view .lv-tip button { color: #0b57d0; }
   html[data-theme="light"] #input-pill .ap-chip { background: #e9e7e7; }
   @media (prefers-reduced-motion: reduce) { #live-view .lv-orb, #live-view .lv-orb::after, #live-view .lv-chunk { animation: none !important; } }
+
+  /* ---- message bar sizes measured from the Gemini app (411 px wide phone), in px because rem is 17px here ----
+     one row: 91 tall, + centred 45 from the left, text from 83, mic centred 100 from the right, 46 Live/send circle 23 from the right;
+     23 px from the screen edges when focused, 46 px when idle; typing: text on top (centre 41 from the top), buttons below, 145 tall, 44 corners */
+  #main-chat-container.is-empty #input-zone, #main-chat-container:not(.is-empty) #input-zone { padding-left: 0; padding-right: 0; }
+  html body #input-pill { min-height: 91px; padding: 0 23px 0 24px; column-gap: 4px; border-radius: 45.5px; margin: 0 46px; }
+  html body #input-pill:focus-within, html body #input-pill.has-text, html body #input-pill.has-attach, html body #input-pill.is-multiline { margin: 0 23px; }
+  html body #input-pill #attach-btn { width: 42px; height: 42px; }
+  html body #input-pill .ip-textarea { padding: 8px 0 8px 12px; }
+  html:not([data-theme="light"]) body #input-pill .ip-textarea::placeholder { color: #9a9b9d; }
+  html body #input-pill .ip-right { gap: 10px; }
+  html body #input-pill #mic-btn { width: 42px; height: 42px; }
+  html body #input-pill #mic-btn svg { width: 22px; height: 22px; }
+  html body #input-pill #send-btn, html body #input-pill #live-btn { width: 46px; height: 46px; }
+  html body #input-pill.is-multiline { padding: 20px 23px 23px 24px; row-gap: 17px; border-radius: 44px; }
+  html body #input-pill.is-multiline .ip-textarea, html body #input-pill.has-mention.is-multiline #prompt-hl { padding: 8px 2px 4px; max-height: 200px; }
+  #notice-banner .nb-text { min-height: 0; overflow: hidden; }
+  #welcome-screen.ws-covered { opacity: 0; }
+  html:not([data-theme="light"]) body #input-pill #send-btn { background: #1f3b9c; color: #dfe5fb; box-shadow: none; }
+  html:not([data-theme="light"]) body #input-pill #send-btn:hover { background: #2747b4; }
 }
 </style>
 
@@ -1733,10 +1756,6 @@ html[data-theme="light"] .img-creating .ic-box{background:linear-gradient(100deg
               <button id="attach-btn" onclick="app.toggleAttachMenu(event)" class="p-2 text-gemini-muted hover:text-white rounded-full hover:bg-[#282a2c] transition" title="Add files and more" aria-haspopup="true" aria-expanded="false">
                 <svg class="t-plus-ico" fill="currentColor"><use href="#t-plus"></use></svg>
               </button>
-              <button id="grounding-toggle-btn" onclick="app.toggleGrounding()" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-[#333537] bg-[#282a2c] text-gemini-muted hover:text-white transition" title="Toggle Google Web Search Grounding">
-                <svg class="fa-icon-inline text-xs" width="1em" height="1em" fill="currentColor"><use href="#fa-globe"></use></svg>
-                <span class="hidden sm:inline">Search</span>
-              </button>
               <div id="active-gem-chip" class="hidden ip-gem">
                 <span id="active-gem-label"></span>
                 <button onclick="app.activateGem(null)" title="Remove Gem" class="text-gemini-muted hover:text-white"><svg class="fa-icon-inline" width="1em" height="1em" fill="currentColor"><use href="#fa-xmark"></use></svg></button>
@@ -2192,7 +2211,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         this.geminiAvatarStyle = localStorage.getItem('gemini_avatar_style') || 'none';
         
         this.selectedModel = 'auto';
-        this.enableGrounding = false;
+        this.enableGrounding = (localStorage.getItem('gemini_search_mode') || 'auto') !== 'off';   // like the app: Gemini decides when to search
         this.currentAttachment = null;
         
         this.chats = JSON.parse(localStorage.getItem('gemini_chats') || '[]')
@@ -2204,6 +2223,8 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         try { this.sidebarCollapsed = localStorage.getItem('gemini_sidebar_collapsed') === '1'; } catch (e) { /* storage unavailable */ }
         this.setSidebarCollapsed(this.sidebarCollapsed, false);
         window.addEventListener('resize', () => this.handleViewportChange());
+        window.addEventListener('resize', () => { this.setPlaceholder(); this.syncPhoneBar(); });
+        { const pl = document.getElementById('input-pill'); if (pl) pl.addEventListener('transitionend', (e) => { if (e.target === pl) { this.setPlaceholder(); this.syncPhoneBar(); } }); }
         this.placeModelPicker();
         document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { this.closeSearchModal(); this.closeMoreMenu(); this.closeSchedModal(); this.closeSettingsMenu(); this.phEscape(); } });
         this._schedTimer = setInterval(() => this.tickScheduled(), 20000);
@@ -2259,6 +2280,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         this.applyLocUI();
         this.autoLocation();
         setTimeout(() => this.playGlowSparks(), 0);
+        setTimeout(() => { this.syncPhoneBar(); this.setPlaceholder(); }, 0);
         this.renderExtraModels();
         PROVIDER_IDS.forEach(pp => { if (this.hasRealKey(pp) && (pp === 'gemini' || !localStorage.getItem('gemini_models_' + pp))) this.fetchProviderModels(pp, true); });
       }
@@ -2641,6 +2663,16 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
             tb.appendChild(b);
           });
           menu.append(th, tb);
+        }
+        // Google Search (Gemini only): with the tool attached, Gemini itself decides when a search helps
+        if (sel === 'auto' || /^gemini/.test(sel)) {
+          const [gh2, gb2] = acc('search', 'Google Search', this.enableGrounding ? 'Auto' : 'Off');
+          [[true, 'Auto', 'Gemini searches the web when it helps'], [false, 'Off', 'Answer without searching']].forEach(([v, t, sb]) => {
+            const b = row({ id: this.enableGrounding === v ? sel : '', label: t }, t, sb);
+            b.onclick = () => this.toggleGrounding(v);
+            gb2.appendChild(b);
+          });
+          menu.append(gh2, gb2);
         }
         menu.onclick = (e) => e.stopPropagation();
       }
@@ -3627,7 +3659,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         }
         const pill = document.getElementById('input-pill'); if (pill) pill.classList.toggle('img-mode', !!this.imageMode);
         const chip = document.getElementById('img-mode-chip'); if (chip) chip.classList.toggle('hidden', !this.imageMode);
-        const ta = document.getElementById('prompt-input'); if (ta) ta.placeholder = this.imageMode ? 'Describe your image' : 'Ask Gemini';
+        const ta = document.getElementById('prompt-input'); if (ta) this.setPlaceholder(this.imageMode ? 'Describe your image' : 'Ask Gemini');
         const lab = document.getElementById('ip-aspect-label'); if (lab) lab.textContent = this.imgAspect ? 'Aspect ratio: ' + this.imgAspect : 'Aspect ratio';
         const tb = document.getElementById('temp-chat-btn');
         if (tb) {
@@ -3665,6 +3697,7 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         const main = document.getElementById('main-chat-container'); if (!main) return;
         main.classList.remove('gemini-glow'); void main.offsetWidth; main.classList.add('gemini-glow');
         this.playGlowSparks();
+        requestAnimationFrame(() => this.syncPhoneBar());
       }
 
       /* Phone intro: a short flash of tiny four-point sparkles inside the glow.
@@ -4432,11 +4465,29 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         hl.scrollTop = ta.scrollTop;
       }
 
+      // Placeholder on one line: if it doesn't fit, cut it at a word and add " ..." like the app ("Ask ...")
+      setPlaceholder(text) {
+        const ta = document.getElementById('prompt-input'); if (!ta) return;
+        if (text != null) ta.dataset.ph = text;
+        const full = ta.dataset.ph || ta.placeholder || '';
+        const cs = getComputedStyle(ta);
+        const avail = ta.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 2;
+        if (!(avail > 0)) { ta.placeholder = full; return; }
+        const c = this._phCtx || (this._phCtx = document.createElement('canvas').getContext('2d'));
+        c.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const fits = (t) => c.measureText(t).width <= avail;
+        if (fits(full)) { ta.placeholder = full; return; }
+        const words = full.split(' ');
+        for (let n = words.length - 1; n >= 1; n--) { const t = words.slice(0, n).join(' ') + ' ...'; if (fits(t)) { ta.placeholder = t; return; } }
+        for (let n = full.length - 1; n >= 1; n--) { const t = full.slice(0, n) + '...'; if (fits(t)) { ta.placeholder = t; return; } }
+        ta.placeholder = '...';
+      }
+
       onPromptFocus(on) {
         const ta = document.getElementById('prompt-input'); if (!ta) return;
         if (!on) setTimeout(() => this.closeMentions(), 120);
         if (this.imageMode) return;
-        ta.placeholder = (on && !this.isMobileViewport()) ? 'Type @ for connectors, skills and more' : 'Ask Gemini';
+        this.setPlaceholder((on && !this.isMobileViewport()) ? 'Type @ for connectors, skills and more' : 'Ask Gemini');
       }
 
       openConnectDialog(item, onAnyway) {
@@ -4485,14 +4536,38 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
       syncInputLayout(textarea = document.getElementById('prompt-input')) {
         const pill = document.getElementById('input-pill');
         if (!pill || !textarea) return;
-        if (!textarea.value) { pill.classList.remove('is-multiline'); return; }
-        if (this.isMobileViewport() && !this.exactBox) {
+        if (!textarea.value) { pill.classList.remove('is-multiline'); requestAnimationFrame(() => { this.setPlaceholder(); this.syncPhoneBar(); }); return; }
+        requestAnimationFrame(() => this.syncPhoneBar());
+        if (this.isMobileViewport() && this.exactBox) {
+          // Gemini app: text on top and the buttons below from the first letter
+          pill.classList.add('is-multiline');
+          textarea.style.height = 'auto';
+          textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        } else if (this.isMobileViewport() && !this.exactBox) {
           // Improved mode: go back to one line as soon as the text fits again.
           pill.classList.remove('is-multiline');
           textarea.style.height = 'auto';
           if (textarea.scrollHeight > 44) pill.classList.add('is-multiline');
           textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
         } else if (textarea.scrollHeight > 44) pill.classList.add('is-multiline');
+      }
+
+      // Phone welcome screen: the notice card sits 6 px above the bar and shrinks when the bar grows;
+      // the greeting hides once they reach it.
+      syncPhoneBar() {
+        const main = document.getElementById('main-chat-container'), pill = document.getElementById('input-pill');
+        const nb = document.getElementById('notice-banner'), ws = document.getElementById('welcome-screen'), ta = document.getElementById('prompt-input');
+        if (!main || !pill || !nb) return;
+        if (!this.isMobileViewport() || !main.classList.contains('is-empty')) { nb.style.bottom = ''; nb.style.maxHeight = ''; if (ws) ws.classList.remove('ws-covered'); return; }
+        const mr = main.getBoundingClientRect(), pr = pill.getBoundingClientRect();
+        nb.style.bottom = Math.round(mr.bottom - pr.top + 6) + 'px';
+        nb.style.maxHeight = Math.max(80, Math.round(pr.top - mr.top - 6 - 64)) + 'px';
+        if (ws) {
+          const shown = nb.offsetParent && getComputedStyle(nb).display !== 'none';
+          const top = shown ? nb.getBoundingClientRect().top : pr.top;
+          const wr = ws.getBoundingClientRect();
+          ws.classList.toggle('ws-covered', !!(ta && ta.value) && wr.height > 0 && wr.bottom > top - 8);
+        }
       }
 
       updateSendButtonState() {
@@ -4543,18 +4618,10 @@ When it helps, end with one short, specific offer of a next step. Skip it when t
         }
       }
 
-      toggleGrounding() {
-        this.enableGrounding = !this.enableGrounding;
-        const btn = document.getElementById('grounding-toggle-btn');
-        if (this.enableGrounding) {
-          btn.classList.add('border-gemini-accent', 'text-gemini-accent', 'bg-gemini-accent/10');
-          btn.classList.remove('text-gemini-muted');
-          this.showToast('Google Search Grounding Enabled', 'info');
-        } else {
-          btn.classList.remove('border-gemini-accent', 'text-gemini-accent', 'bg-gemini-accent/10');
-          btn.classList.add('text-gemini-muted');
-          this.showToast('Search Grounding Disabled', 'info');
-        }
+      toggleGrounding(on = !this.enableGrounding) {
+        this.enableGrounding = !!on;
+        try { localStorage.setItem('gemini_search_mode', this.enableGrounding ? 'auto' : 'off'); } catch (e) { /* ignore */ }
+        this.renderModelMenu();
       }
 
       selectModel(modelId, label) {

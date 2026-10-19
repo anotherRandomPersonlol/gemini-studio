@@ -2,6 +2,15 @@
 
 The app has no version numbers. The GitHub Pages site always serves the latest `main` branch. This file lists the changes by date.
 
+## 2026-10-20
+
+### Changed
+- Google Search moved from the message bar into the model menu. It is set to Auto by default, so Gemini decides when to search, like the app. Set it to Off to answer without searching.
+- Phone message bar sized from the Gemini app. It is 91 px tall, 23 px from the screen edges when focused and 46 px when idle. The Live and send circles are 46 px, and the send button is dark blue.
+- Phone, with **Exact Gemini message box** on: the text moves to the top row and the buttons move below as soon as you type, like the app.
+- Phone: the notice card stays 6 px above the message bar and moves up as the bar grows. The greeting hides when they reach it.
+- The placeholder stays on one line. If it doesn't fit, it ends with " ..." (for example "Ask ...").
+
 ## 2026-10-19
 
 ### New
