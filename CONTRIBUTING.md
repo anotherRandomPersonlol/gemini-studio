@@ -2,6 +2,8 @@
 
 Thank you for helping to make Gemini Studio better. This page tells you how to report a problem and how to send a code change.
 
+Everyone who takes part follows the [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Report a problem
 
 Before you report:
